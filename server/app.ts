@@ -1,83 +1,126 @@
-import { db } from "./firebase";
+import express, { Express } from "express";
+import cors from "cors";
+import { addPerson, getPeople, getPerson, getCertainAge, updateAge, deletePerson } from "./people.controller";
+import { Person } from "../common/types";
 
-const peopleCollectionRef = db.collection("people");
-const michelleDocRef = db.collection("people").doc("myl39");
+const app: Express = express();
+const port = 8080;
 
-const createNew = async () => {
-  await michelleDocRef.set({ age: 21 });
-};
+app.use(cors());
+app.use(express.json());
 
-const addData = async () => {
-  const newDoc = peopleCollectionRef.doc("dlw66");
-  await newDoc.set({
-    first: "Daniel",
-    last: "Wei",
-    age: 20,
-    year: "Sophomore",
-  });
-};
-
-const getPeople = async () => {
-  const snapshot = await db.collection("people").get();
-  snapshot.forEach((doc) => {
-    console.log(doc.id, "=>", doc.data());
-  });
-};
-
-const getMichelle = async () => {
-  const doc = await db.collection("people").doc("myl39").get();
-  console.log(doc.id, "=>", doc.data());
-};
-
-const getPerson = async (netid: string) => {
-  const doc = await peopleCollectionRef.doc(netid).get();
-  if (doc.exists) {
-    console.log("Document data:", doc.data());
-  } else {
-    console.log("No such document");
-  }
-};
-
-const getCertainAge = async (age: number) => {
-  const snapshot = await peopleCollectionRef.where("age", "==", age).get();
-  if (snapshot.empty) {
-    console.log("No matching documents");
-  } else {
-    snapshot.forEach((doc) => {
-      console.log(doc.id, "=>", doc.data());
+app.get("/api/person/:netid", async (req, res) => {
+  console.log("[GET] entering 'person/:netid' endpoint");
+  const netid: string = req.params.netid;
+  try {
+    const person = await getPerson(netid);
+    if (person === null) {
+      res
+        .status(404)
+        .send({
+          error: `ERROR: person with netid: ${netid} not found in Firestore`,
+        });
+    } else {
+      res.status(200).send({
+        message: `SUCCESS retrieved person with netid: ${netid} from the people collection in Firestore`,
+      });
+    }
+  } catch (err) {
+    res.status(500).json({
+      error: `ERROR: an error occurred in the /api/person/:netid endpoint: ${err}`,
     });
   }
-};
+});
 
-const getAge = async () => {
-  const snapshot = await peopleCollectionRef
-    .where("age", ">=", 20)
-    .orderBy("age", "desc")
-    .limit(3)
-    .get();
+app.post("/api/person/:netid", async (req, res) => {
+  console.log("[POST] entering '/person/:netid' endpoint");
+  const netid: string = req.params.netid;
+  const { first, last, age, year } = req.body;
+  const person: Person = {
+    first,
+    last,
+    age,
+    year,
+  };
 
-  snapshot.forEach((doc) => {
-    console.log(doc.id, "=>", doc.data());
-  });
-};
+  try {
+    await addPerson(netid, person);
+    res.status(200).send({
+      message: `SUCCESS added person with netid: ${netid} to the people collection in Firestore`,
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: `ERROR: an error occurred in the /api/people/:netid endpoint: ${err}`,
+    });
+  }
+});
 
-const updateAge = async () => {
-  const res = await peopleCollectionRef
-    .doc("myl39")
-    .update({ age: 20, first: "Michelle" });
-  console.log(res);
-};
+app.get("/api/people", async (req, res) => {
+  console.log("[GET] entering 'people' endpoint");
 
-const deleteDoc = async (netid: string) => {
-  const doc = await peopleCollectionRef.doc(netid).delete();
-  console.log(doc);
-};
+  try {
+    const people = await getPeople();
+    res.status(200).send({
+      message: `SUCCESS retrieved ${people} from the people collection in Firestore`,
+      data: people,
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: `ERROR: an error occurred in the /api/people endpoint: ${err}`,
+    });
+  }
+});
 
-// createNew();
-// addData();
-// getPeople();
-// getPerson("dasdf");
-// getCertainAge(20);
-getAge();
-// updateAge(); // doesn't exist? error
-deleteDoc("myl39");
+app.get("/api/age/:age", async (req, res) => {
+  console.log("[GET] entering 'addPerson' endpoint");
+  const age: number = Number(req.params.age)
+
+  try {
+    const people = await getCertainAge(age);
+    res.status(200).send({
+      message: `SUCCESS retrieved all people with age: ${age} from the people collection in Firestore`,
+      data: people,
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: `ERROR: an error occurred in the /api/age/:age endpoint: ${err}`,
+    });
+  }
+});
+
+app.put("/api/age/:netid", async (req, res) => {
+  console.log("[PUT] entering '/age/:age' endpoint");
+  const netid: string = req.params.netid
+  const age: number = Number(req.body.age);
+
+  try {
+    await updateAge(netid, age);
+    res.status(200).send({
+      message: `SUCCESS updated person with netid: ${netid} to age: ${age} from the people collection in Firestore`,
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: `ERROR: an error occurred in the /api/age/:netid endpoint: ${err}`,
+    });
+  }
+});
+
+app.delete("/api/person/:netid", async (req, res) => {
+  console.log("[DELETE] entering '/person/:netid' endpoint");
+  const netid: string = req.params.netid;
+
+  try {
+    await deletePerson(netid);
+    res.status(200).send({
+      message: `SUCCESS deleted person with netid: ${netid} from the people collection in Firestore`,
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: `ERROR: an error occurred in the /api/age/:netid endpoint: ${err}`,
+    });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`SERVER listening on port ${port}`);
+});

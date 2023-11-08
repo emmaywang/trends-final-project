@@ -1,7 +1,7 @@
+// @ts-nocheck
 import { initializeApp, applicationDefault, cert } from "firebase-admin/app";
 import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
-
-let serviceAccount = require("./serviceAccountKey.json");
+import serviceAccount from "./service_account.json";
 
 const app = initializeApp({
   credential: cert(serviceAccount),

@@ -8,4 +8,4 @@ const app = initializeApp({
 });
 const db = getFirestore();
 
-export { db };
+export { db, app };
